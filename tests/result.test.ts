@@ -16,7 +16,7 @@ describe('Result<T, E>', () => {
   });
   test('synchronous methods', () => {
     const rOk: Result<number, string> = ok(5);
-    const rErr: Result<number, string> = err('error');
+    const rErr: Result<number, string> = err().mapErr(() => 'error');
     expect(rOk.isOk()).toBe(true);
     expect(rOk.isErr()).toBe(false);
     expect(rErr.isOk()).toBe(false);

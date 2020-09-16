@@ -53,6 +53,19 @@ describe('AsyncResult<T, E>', () => {
 
     expect(
       await arOk
+        .mapErr((s) => s.length * 3)
+        .toPromise()
+        .then((r) => r.unwrap()),
+    ).toBe(5);
+    expect(
+      await arErr
+        .mapErr((s) => s.length * 3)
+        .toPromise()
+        .then((r) => r.unwrapErr()),
+    ).toBe(15);
+
+    expect(
+      await arOk
         .mapErrAsync(async (s) => s.length * 3)
         .toPromise()
         .then((r) => r.unwrap()),
