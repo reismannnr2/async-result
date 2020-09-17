@@ -13,7 +13,7 @@
     "type": "git",
     "url": "git@github.com:reismannnr2/async-result.git"
   },
-  "author": "",
+  "author": "reismannnr2",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^26.0.13",
