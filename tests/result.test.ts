@@ -73,5 +73,6 @@ describe('Result<T, E>', () => {
     expect(
       (await rErr.orElseAsync(async (e) => ok(e.length * 2))).unwrap(),
     ).toEqual(10);
+    expect((await rOk.toAsync().toPromise()).unwrap()).toBe(5);
   });
 });

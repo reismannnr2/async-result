@@ -140,5 +140,13 @@ describe('AsyncResult<T, E>', () => {
         err: (error) => error.length * 3,
       }),
     ).toBe(15);
+    expect(await arOk.unwrap()).toBe(5);
+    expect(await arOk.unwrapOr(10)).toBe(5);
+    expect(await arErr.unwrapOr(10)).toBe(10);
+    expect(await arErr.unwrapErr()).toBe('error');
+    expect(await arOk.unwrapOrElse((s) => s.length * 2)).toBe(5);
+    expect(await arErr.unwrapOrElse((s) => s.length * 2)).toBe(10);
+    expect(await arOk.and(err('error!')).unwrapErr()).toBe('error!');
+    expect(await arErr.or(ok(100)).unwrap()).toBe(100);
   });
 });
