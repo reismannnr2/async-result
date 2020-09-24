@@ -1,4 +1,4 @@
-import { AsyncResult } from 'src/async-result';
+import { AsyncResult } from './async-result';
 
 interface InnerOk<T> {
   isOk: true;

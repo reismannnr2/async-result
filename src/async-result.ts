@@ -1,4 +1,4 @@
-import { err, ok, Result, ResultMatcher } from 'src/result';
+import { err, ok, Result, ResultMatcher } from './result';
 
 export class AsyncResult<T, E> {
   constructor(readonly promise: Promise<Result<T, E>>) {}
