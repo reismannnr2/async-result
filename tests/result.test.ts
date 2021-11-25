@@ -1,4 +1,4 @@
-import { err, ok, Result } from 'src/result';
+import { err, ok, Result } from '../src/result';
 
 describe('Result<T, E>', () => {
   test('static methods', () => {
@@ -17,10 +17,10 @@ describe('Result<T, E>', () => {
   test('synchronous methods', () => {
     const rOk: Result<number, string> = ok(5);
     const rErr: Result<number, string> = err().mapErr(() => 'error');
-    expect(rOk.isOk()).toBe(true);
-    expect(rOk.isErr()).toBe(false);
-    expect(rErr.isOk()).toBe(false);
-    expect(rErr.isErr()).toBe(true);
+    expect(rOk.isOk).toBe(true);
+    expect(rOk.isErr).toBe(false);
+    expect(rErr.isOk).toBe(false);
+    expect(rErr.isErr).toBe(true);
     expect(rOk.unwrap()).toBe(5);
     expect(() => rErr.unwrap()).toThrow();
     expect(() => rOk.unwrapErr()).toThrow();
@@ -51,6 +51,8 @@ describe('Result<T, E>', () => {
   test('asynchronous methods', async () => {
     const rOk: Result<number, string> = ok(5);
     const rErr: Result<number, string> = err('error');
+    expect(rOk.always()).toBe(rOk);
+    expect(rErr.never()).toBe(rErr);
     expect((await rOk.mapAsync(async (v) => v * 2)).unwrap()).toEqual(10);
     expect((await rErr.mapAsync(async (v) => v * 2)).unwrapErr()).toEqual(
       'error',
@@ -74,5 +76,26 @@ describe('Result<T, E>', () => {
       (await rErr.orElseAsync(async (e) => ok(e.length * 2))).unwrap(),
     ).toEqual(10);
     expect((await rOk.toAsync().toPromise()).unwrap()).toBe(5);
+    expect((await rErr.toAsync().toPromise()).unwrapErr()).toBe('error');
+  });
+  test('iteration', () => {
+    const rOk: Result<number, string> = ok(5);
+    const rErr: Result<number, string> = err().mapErr(() => 'error');
+    const fromOk = (() => {
+      // noinspection LoopStatementThatDoesntLoopJS
+      for (const v of rOk) {
+        return v;
+      }
+      return 10;
+    })();
+    const fromErr = (() => {
+      // noinspection LoopStatementThatDoesntLoopJS
+      for (const v of rErr) {
+        return 5;
+      }
+      return 10;
+    })();
+    expect(fromOk).toBe(5);
+    expect(fromErr).toBe(10);
   });
 });

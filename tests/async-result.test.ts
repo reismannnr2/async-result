@@ -1,5 +1,5 @@
-import { AsyncResult } from 'src/async-result';
-import { ok, err } from 'src/result';
+import { AsyncResult } from '../src/async-result';
+import { ok, err } from '../src/result';
 
 describe('AsyncResult<T, E>', () => {
   test('static methods', async () => {

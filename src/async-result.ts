@@ -1,12 +1,17 @@
-import { err, ok, Result, ResultMatcher } from './result';
+import { err, ok, Ok, Err, Result, ResultMatcher } from './result';
 
 export class AsyncResult<T, E> {
-  constructor(readonly promise: Promise<Result<T, E>>) {}
+  constructor(
+    readonly promise:
+      | Promise<Result<T, E>>
+      | Promise<Ok<T, E>>
+      | Promise<Err<E, T>>,
+  ) {}
 
   /**
    * returns the inner Promise of Result<T, E>
    */
-  toPromise(): Promise<Result<T, E>> {
+  toPromise(): Promise<Result<T, E>> | Promise<Ok<T, E>> | Promise<Err<E, T>> {
     return this.promise;
   }
 
@@ -26,7 +31,10 @@ export class AsyncResult<T, E> {
    */
   mapAsync<U>(transform: (value: T) => Promise<U>): AsyncResult<U, E> {
     return new AsyncResult<U, E>(
-      this.promise.then((r) => r.mapAsync(transform)),
+      (async () => {
+        const r = await this.promise;
+        return r.mapAsync(transform);
+      })(),
     );
   }
 
@@ -48,7 +56,10 @@ export class AsyncResult<T, E> {
    */
   mapErrAsync<EU>(transform: (error: E) => Promise<EU>): AsyncResult<T, EU> {
     return new AsyncResult<T, EU>(
-      this.promise.then((r) => r.mapErrAsync(transform)),
+      (async () => {
+        const r = await this.promise;
+        return r.mapErrAsync(transform);
+      })(),
     );
   }
 
@@ -96,7 +107,10 @@ export class AsyncResult<T, E> {
     alter: (error: E) => Promise<Result<T, E | EU>>,
   ): AsyncResult<T, E | EU> {
     return new AsyncResult<T, E | EU>(
-      this.promise.then((r) => r.orElseAsync(alter)),
+      (async () => {
+        const r = await this.promise;
+        return r.orElseAsync(alter);
+      })(),
     );
   }
 
