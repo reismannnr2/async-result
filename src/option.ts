@@ -1,6 +1,7 @@
 import { AsyncOption } from 'src/async-option';
+import { err, Ok, ok, Result } from 'src/result';
 
-interface OptionMatcher<T, R> {
+export interface OptionMatcher<T, R> {
   some: (value: T) => R;
   none: () => R;
 }
@@ -26,13 +27,13 @@ interface OptionBase<T> {
    * returns the inner value if some, otherwise the given alternate
    * @param alternate
    */
-  unwrapOr(alternate: T): T;
+  unwrapOr<U = T>(alternate: U): T | U;
 
   /**
    * returns the inner value if some, otherwise the result of given function
    * @param alter
    */
-  unwrapOrElse(alter: () => T): T;
+  unwrapOrElse<U = T>(alter: () => U): T | U;
 
   /**
    * returns the result of the matcher function corresponding to current inner value
@@ -127,16 +128,15 @@ interface OptionBase<T> {
     other: Option<U>,
     transform: (self: T, other: U) => R,
   ): Option<R>;
+  /**
+   * returns Ok<T> if some,
+   * otherwise Err<E> created by given function
+   * @param err
+   */
+  toResult<E>(err: () => E): Result<T, E>;
 }
 
 interface PromiseOption<T> {
-  /**
-   * returns a Promise that resolves to inner value if some,
-   * otherwise Promise resolves to the result of given function
-   * @param alter
-   */
-  unwrapOrElseAsync<U = T>(alter: () => U | Promise<U>): Promise<T | U>;
-
   /**
    * returns a Promise that resolves to true if some and the inner value matches the predicate,
    * otherwise false
@@ -198,7 +198,13 @@ interface PromiseOption<T> {
     other: Option<U>,
     transform: (self: T, other: U) => R | Promise<R>,
   ): Promise<Option<R>>;
-
+  /**
+   * returns Ok<T> if some,
+   * otherwise Err<E> created by given function
+   * use this to avoid messy Result<T, Promise<E>>
+   * @param createError
+   */
+  toResultAsync<E>(createError: () => E | Promise<E>): Promise<Result<T, E>>;
   /**
    * returns an async option contains a Promise that resolves to this
    */
@@ -217,10 +223,10 @@ class Some<T> implements OptionBase<T>, PromiseOption<T> {
   unwrap(): T {
     return this.value;
   }
-  unwrapOr(alternate: T): T {
+  unwrapOr<U = T>(alternate: U): T {
     return this.value;
   }
-  unwrapOrElse(alter: () => T): T {
+  unwrapOrElse<U = T>(alter: () => U): T {
     return this.value;
   }
   match<R>(matcher: OptionMatcher<T, R>): R {
@@ -238,16 +244,16 @@ class Some<T> implements OptionBase<T>, PromiseOption<T> {
   filter(predicate: (value: T) => boolean): Option<T> {
     return predicate(this.value) ? this : none_;
   }
-  insert<U = T>(alternate: U): Some<T> {
+  insert<U = T>(alternate: U): Some<T | U> {
     return this;
   }
-  insertWith<U = T>(alter: () => U): Some<T> {
+  insertWith<U = T>(alter: () => U): Some<T | U> {
     return this;
   }
   and<U>(replace: Option<U>): Option<U> {
     return replace;
   }
-  or<U = T>(alternate: Option<U>): Some<T> {
+  or<U = T>(alternate: Option<U>): Some<T | U> {
     return this;
   }
   xor<U = T>(other: Option<U>): Option<U | T> {
@@ -268,10 +274,10 @@ class Some<T> implements OptionBase<T>, PromiseOption<T> {
   ): Option<R> {
     return other.map((other) => transform(this.value, other));
   }
-
-  async unwrapOrElseAsync<U = T>(alter: () => Promise<U> | U): Promise<T> {
-    return this.value;
+  toResult<E>(err: () => E): Ok<T, E> {
+    return ok(this.value);
   }
+
   async testAsync(
     predicate: (value: T) => boolean | Promise<boolean>,
   ): Promise<boolean> {
@@ -285,7 +291,9 @@ class Some<T> implements OptionBase<T>, PromiseOption<T> {
   ): Promise<Option<U>> {
     return transform(this.value);
   }
-  async insertWithAsync<U = T>(alter: () => Promise<U> | U): Promise<Some<T>> {
+  async insertWithAsync<U = T>(
+    alter: () => Promise<U> | U,
+  ): Promise<Some<T | U>> {
     return this;
   }
   async orElseAsync<U = T>(
@@ -295,13 +303,26 @@ class Some<T> implements OptionBase<T>, PromiseOption<T> {
   }
 
   async zipWithAsync<U, R>(
-    other: Option<U>,
+    other: Option<U> | Promise<Option<U>>,
     transform: (self: T, other: U) => Promise<R> | R,
   ): Promise<Option<R>> {
-    if (other.isNone) {
+    const other_ = await other;
+    if (other_.isNone) {
       return none_;
     }
-    return some(await transform(this.value, other.value));
+    return some(await transform(this.value, other_.value));
+  }
+
+  async filterAsync(
+    predicate: (value: T) => boolean | Promise<boolean>,
+  ): Promise<Option<T>> {
+    return (await predicate(this.value)) ? this : none_;
+  }
+
+  async toResultAsync<E>(
+    createError: () => Promise<E> | E,
+  ): Promise<Result<T, E>> {
+    return ok(this.value);
   }
 
   toAsync(): AsyncOption<T> {
@@ -310,22 +331,26 @@ class Some<T> implements OptionBase<T>, PromiseOption<T> {
 }
 
 class None<T = never> implements OptionBase<T>, PromiseOption<T> {
-  never(): None {
+  /**
+   * Utility function for type coercion.
+   * Actually None does not have T value.
+   */
+  never<U>(): None<U> {
     return none_;
   }
 
   isSome: false = false;
   isNone: true = true;
 
-  *[Symbol.iterator](): Iterator<T> {}
+  *[Symbol.iterator](): Iterator<never> {}
 
   unwrap(): never {
     throw new Error('Cannot unwrap None');
   }
-  unwrapOr(alternate: T): T {
+  unwrapOr<U = T>(alternate: U): U {
     return alternate;
   }
-  unwrapOrElse(alter: () => T): T {
+  unwrapOrElse<U = T>(alter: () => U): U {
     return alter();
   }
   match<R>(matcher: OptionMatcher<T, R>): R {
@@ -343,7 +368,7 @@ class None<T = never> implements OptionBase<T>, PromiseOption<T> {
   filter(predicate: (value: T) => boolean): None<T> {
     return none_;
   }
-  insert<U = T>(alternate: U): Some<U> {
+  insert<U = T>(alternate: U): Some<T | U> {
     return some(alternate);
   }
   insertWith<U = T>(alter: () => U): Some<U> {
@@ -356,10 +381,7 @@ class None<T = never> implements OptionBase<T>, PromiseOption<T> {
     return alternate;
   }
   xor<U = T>(other: Option<U>): Option<U | T> {
-    if (other.isSome) {
-      return other;
-    }
-    return none_;
+    return other;
   }
   orElse<U = T>(alter: () => Option<U>): Option<U> {
     return alter();
@@ -374,9 +396,10 @@ class None<T = never> implements OptionBase<T>, PromiseOption<T> {
     return none_;
   }
 
-  async unwrapOrElseAsync<U = T>(alter: () => Promise<U> | U): Promise<U> {
-    return alter();
+  toResult<E>(createError: () => E): Result<T, E> {
+    return err(createError());
   }
+
   async testAsync(
     predicate: (value: T) => boolean | Promise<boolean>,
   ): Promise<false> {
@@ -403,6 +426,18 @@ class None<T = never> implements OptionBase<T>, PromiseOption<T> {
     transform: (self: T, other: U) => Promise<R> | R,
   ): Promise<None<R>> {
     return none_;
+  }
+
+  async filterAsync(
+    predicate: (value: T) => boolean | Promise<boolean>,
+  ): Promise<None<T>> {
+    return none_;
+  }
+
+  async toResultAsync<E>(
+    createError: () => Promise<E> | E,
+  ): Promise<Result<T, E>> {
+    return err(await createError());
   }
 
   toAsync(): AsyncOption<T> {

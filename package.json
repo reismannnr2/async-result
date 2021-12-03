@@ -1,6 +1,6 @@
 {
   "name": "@reismannnr2/async-result",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "(a)synchronous error handling classes inspired by Rust",
   "main": "dist/commonjs/index.js",
   "module": "dist/es6/index.js",
