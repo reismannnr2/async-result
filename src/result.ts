@@ -68,7 +68,7 @@ interface ResultBase<T, E> {
    * otherwise just current Err
    * @param transform
    */
-  andThen<U, EU = E>(transform: (value: T) => Result<T, EU>): Result<T, E | EU>;
+  andThen<U, EU = E>(transform: (value: T) => Result<U, EU>): Result<U, E | EU>;
 
   /**
    * returns just current Ok<T> if ok
@@ -320,7 +320,7 @@ class Err<E, T = never> implements ResultBase<T, E>, PromiseResult<T, E> {
   mapErr<EU>(transform: (error: E) => EU): Err<EU> {
     return err(transform(this.error));
   }
-  andThen<U, EU = E>(transform: (value: T) => Result<T, EU>): Err<E> {
+  andThen<U, EU = E>(transform: (value: T) => Result<U, EU>): Err<E> {
     return this as unknown as Err<E>;
   }
   orElse<EU, U = T>(transform: (error: E) => Result<U, EU>): Result<U, EU> {
